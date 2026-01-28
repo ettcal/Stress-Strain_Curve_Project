@@ -2,7 +2,7 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://ettcal.github.io/Stress-Starain_Curve_Project",
+  "homepage": "https://ettcal.github.io/Stress-Strain_Curve_Project",
   "type": "module",
   "scripts": {
     "dev": "vite",
