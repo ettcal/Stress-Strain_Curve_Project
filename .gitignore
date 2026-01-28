@@ -1,0 +1,30 @@
+# Virtual Environment
+env/
+venv/
+ENV/
+bin/
+lib/
+share/
+
+# Python files (compiled and cache)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Data and Notebooks (optional, for large datasets)
+*.csv
+*.xlsx
+.ipynb_checkpoints/
+
+# Editor configuration
+.vscode/
+.idea/
+
+# Environment variables (security)
+.env
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
