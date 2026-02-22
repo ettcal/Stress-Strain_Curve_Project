@@ -1,48 +1,50 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import numpy as np
 
 app = FastAPI()
 
-# Permitir conexión desde el frontend de React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],  
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class MaterialInput(BaseModel):
-    E: float   # Módulo elástico
-    Sy: float  # Límite elástico
-    Et: float  # Módulo tangente
-    emax: float # Deformación máxima
+class CurveParameters(BaseModel):
+    E: float
+    Sy: float
+    Et: float
+    emax: float
+    modelType: str
+    numPoints: int  # --- NEW: Receives the number of data points ---
 
 @app.post("/calculate")
-async def calculate_curve(data: MaterialInput):
-    # Deformación en el límite elástico
-    yield_strain = data.Sy / data.E
+def calculate_curve(params: CurveParameters):
+    data_points = []
     
-    # Generar 100 puntos de deformación (Strain)
-    strains = np.linspace(0, data.emax, 100)
-    results = []
-
-    for eps in strains:
-        if eps <= yield_strain:
-            # Región Elástica: Ley de Hooke
-            sig = eps * data.E
+    # We ensure there are at least 2 points to avoid division by zero errors
+    points = max(2, params.numPoints) 
+    
+    # The step size is the max strain divided by the number of intervals (points - 1)
+    strain_step = params.emax / (points - 1)
+    
+    current_strain = 0.0
+    for _ in range(points):
+        if params.modelType == "Option 1":
+            current_stress = params.E * current_strain
+        elif params.modelType == "Option 2":
+            current_stress = (params.E * current_strain) * 0.8
+        elif params.modelType == "Option 3":
+            current_stress = (params.E * current_strain) * 0.5
         else:
-            # Región Plástica: Endurecimiento lineal
-            sig = data.Sy + (eps - yield_strain) * data.Et
-        
-        results.append({
-            "strain": round(float(eps), 5),
-            "stress": round(float(sig), 2)
+            current_stress = params.E * current_strain
+            
+        data_points.append({
+            "strain": round(current_strain, 4),
+            "stress": round(current_stress, 2)
         })
-    
-    return results
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        current_strain += strain_step
+        
+    return data_points
