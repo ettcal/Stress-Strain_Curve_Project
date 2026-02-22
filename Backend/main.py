@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+# CORS configuration to allow React to communicate with Python
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  
@@ -12,31 +13,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Data structure representing the inputs sent by React
 class CurveParameters(BaseModel):
     E: float
     Sy: float
     Et: float
     emax: float
     modelType: str
-    numPoints: int  # --- NEW: Receives the number of data points ---
+    numPoints: int
 
 @app.post("/calculate")
 def calculate_curve(params: CurveParameters):
     data_points = []
     
-    # We ensure there are at least 2 points to avoid division by zero errors
+    # We ensure there are at least 2 points to avoid division by zero
     points = max(2, params.numPoints) 
-    
-    # The step size is the max strain divided by the number of intervals (points - 1)
     strain_step = params.emax / (points - 1)
     
     current_strain = 0.0
     for _ in range(points):
-        if params.modelType == "Option 1":
+        
+        # Apply the specific math based on the selected model
+        if params.modelType == "Nelson":
             current_stress = params.E * current_strain
-        elif params.modelType == "Option 2":
+        elif params.modelType == "Fracture fit":
             current_stress = (params.E * current_strain) * 0.8
-        elif params.modelType == "Option 3":
+        elif params.modelType == "Considere":
             current_stress = (params.E * current_strain) * 0.5
         else:
             current_stress = params.E * current_strain

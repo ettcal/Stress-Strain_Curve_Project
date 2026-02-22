@@ -11,11 +11,20 @@ function App() {
     Sy: 250, 
     Et: 2000, 
     emax: 0.1, 
-    modelType: 'Option 1',
+    modelType: 'Nelson', 
     numPoints: 20 
   });
   
   const [materials, setMaterials] = useState([]);
+  
+  // --- NEW: State to control whether graph markers are shown or hidden ---
+  const [showMarkers, setShowMarkers] = useState(true);
+
+  const radioOptions = [
+    { value: 'Nelson', tooltip: 'Nelson Equation for True Stress-Strain' },
+    { value: 'Fracture fit', tooltip: 'Fracture Fit Method' },
+    { value: 'Considere', tooltip: 'Considère Criterion for Onset of Necking' }
+  ];
 
   const handleInputChange = (e, key) => {
     if (key === 'materialName') {
@@ -141,6 +150,19 @@ function App() {
     
     .radio-group { margin-top: 20px; padding: 15px; border: none; border-radius: 8px; background-color: #ffffff; width: fit-content; }
 
+    .tooltip-container {
+      position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: help;
+    }
+
+    .tooltip-text {
+      visibility: hidden; width: max-content; max-width: 200px; background-color: #333; color: #fff;
+      text-align: center; border-radius: 6px; padding: 6px 10px; position: absolute; z-index: 100;
+      left: 110%; opacity: 0; transition: opacity 0.2s ease-in-out; font-size: 12px; font-weight: normal;
+      box-shadow: 0px 4px 6px rgba(0,0,0,0.1); pointer-events: none; 
+    }
+
+    .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+
     .action-buttons { display: flex; gap: 10px; margin-top: 20px; }
     .btn-calc, .btn-clear {
       padding: 10px 15px; cursor: pointer; border: none; border-radius: 8px; background-color: #ffffff; 
@@ -162,29 +184,46 @@ function App() {
     .data-table th { background-color: #e0e0e0; color: #333; padding: 10px; position: sticky; top: 0; text-align: center; }
     .data-table td { padding: 8px; text-align: center; border-bottom: 1px solid #f2f2f2; color: #555; }
 
+    /* --- NEW: Layout for the controls below the graph --- */
+    .graph-controls {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
     .dropdown-container {
-      margin-top: 10px; 
       background-color: #f2f2f2; 
       border-radius: 8px; 
       padding: 10px;
       width: 50%; 
       box-sizing: border-box; 
     }
-    .dropdown-summary {
-      cursor: pointer; font-weight: bold; color: #333; outline: none; user-select: none;
-    }
+    
+    .dropdown-summary { cursor: pointer; font-weight: bold; color: #333; outline: none; user-select: none; }
+    
     .checkbox-list {
       display: flex; flex-direction: column; gap: 8px; margin-top: 10px; 
       padding-top: 10px; border-top: 1px solid #ccc;
     }
-    .checkbox-item {
-      display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333;
+    
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; }
+
+    /* --- NEW: Box for the toggle markers checkbox --- */
+    .toggle-markers-box {
+      background-color: #f2f2f2; 
+      border-radius: 8px; 
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      height: fit-content;
     }
 
     @media (max-width: 800px) {
       .main-container { flex-direction: column; }
       .column-inputs, .column-table, .column-graph { width: 100%; }
-      .dropdown-container { width: 100%; } 
+      .graph-controls { flex-direction: column; }
+      .dropdown-container, .toggle-markers-box { width: 100%; } 
     }
   `;
 
@@ -230,17 +269,18 @@ function App() {
             ))}
 
             <div className="radio-group">
-              {['Option 1', 'Option 2', 'Option 3'].map((opt, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              {radioOptions.map((opt, i) => (
+                <div key={i} className="tooltip-container">
                   <input 
                     type="radio" 
                     name="modelType" 
-                    value={opt}
-                    checked={inputs.modelType === opt}
+                    value={opt.value}
+                    checked={inputs.modelType === opt.value}
                     onChange={(e) => setInputs({ ...inputs, modelType: e.target.value })}
-                    style={{ accentColor: '#2e7d32' }} 
+                    style={{ accentColor: '#2e7d32', cursor: 'pointer' }} 
                   />
-                  <label style={{ fontSize: '14px', color: '#333' }}>{opt}</label>
+                  <label style={{ fontSize: '14px', color: '#333', cursor: 'help' }}>{opt.value}</label>
+                  <span className="tooltip-text">{opt.tooltip}</span>
                 </div>
               ))}
             </div>
@@ -315,7 +355,8 @@ function App() {
                     x: mat.data.map(d => d.strain),
                     y: mat.data.map(d => d.stress),
                     type: 'scatter',
-                    mode: 'lines+markers',
+                    /* --- UPDATED: Dynamic mode based on the checkbox state --- */
+                    mode: showMarkers ? 'lines+markers' : 'lines',
                     name: mat.name,
                     marker: { size: 6 },
                     line: { width: 2, shape: 'linear' }
@@ -330,16 +371,16 @@ function App() {
                     automargin: true, 
                     zerolinecolor: '#ccc', gridcolor: '#e0e0e0',
                     fixedrange: true, rangemode: 'nonnegative',
-                    exponentformat: 'none', /* --- REMOVES 'k' AND 'M' SUFFIXES --- */
-                    tickformat: ',' /* --- ADDS COMMA SEPARATOR FOR THOUSANDS --- */
+                    exponentformat: 'none', 
+                    tickformat: ',' 
                   },
                   yaxis: { 
                     title: { text: 'Stress', font: { size: 14 } }, 
                     automargin: true, 
                     zerolinecolor: '#ccc', gridcolor: '#e0e0e0',
                     fixedrange: true, rangemode: 'nonnegative',
-                    exponentformat: 'none', /* --- REMOVES 'k' AND 'M' SUFFIXES --- */
-                    tickformat: ',' /* --- ADDS COMMA SEPARATOR FOR THOUSANDS --- */
+                    exponentformat: 'none', 
+                    tickformat: ',' 
                   },
                   showlegend: true,
                   legend: { x: 0, y: 1 } 
@@ -358,23 +399,38 @@ function App() {
             )}
           </div>
 
+          {/* --- UPDATED: Flex container holding both the dropdown and the toggle --- */}
           {materials.length > 0 && (
-            <details className="dropdown-container">
-              <summary className="dropdown-summary">Active Materials ({materials.filter(m => m.visible).length}/{materials.length})</summary>
-              <div className="checkbox-list">
-                {materials.map(mat => (
-                  <label key={mat.id} className="checkbox-item">
-                    <input 
-                      type="checkbox" 
-                      checked={mat.visible} 
-                      onChange={() => toggleVisibility(mat.id)} 
-                      style={{ accentColor: '#2e7d32' }} 
-                    />
-                    {mat.name}
-                  </label>
-                ))}
+            <div className="graph-controls">
+              <details className="dropdown-container">
+                <summary className="dropdown-summary">Active Materials ({materials.filter(m => m.visible).length}/{materials.length})</summary>
+                <div className="checkbox-list">
+                  {materials.map(mat => (
+                    <label key={mat.id} className="checkbox-item">
+                      <input 
+                        type="checkbox" 
+                        checked={mat.visible} 
+                        onChange={() => toggleVisibility(mat.id)} 
+                        style={{ accentColor: '#2e7d32' }} 
+                      />
+                      {mat.name}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              
+              <div className="toggle-markers-box">
+                <label className="checkbox-item" style={{ fontWeight: 'bold' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={showMarkers} 
+                    onChange={(e) => setShowMarkers(e.target.checked)} 
+                    style={{ accentColor: '#0056b3' }} /* Blue to match the graph line */
+                  />
+                  Show Markers
+                </label>
               </div>
-            </details>
+            </div>
           )}
 
         </div>
